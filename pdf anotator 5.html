@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Annotator Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 50px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: rgba(76,175,80,0.1);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .toolbar {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: none;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .toolbar.active {
+            display: flex;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: rgba(102,126,234,0.1);
+            border-radius: 15px;
+        }
+
+        .tool-btn {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            background: #667eea;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .color-picker:hover {
+            transform: scale(1.1);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider {
+            width: 100px;
+            height: 5px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            min-height: 600px;
+        }
+
+        .pdf-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pdf-viewer {
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #f8f9fa;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .sidebar {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .annotation-item {
+            background: rgba(102,126,234,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .annotation-item:hover {
+            background: rgba(102,126,234,0.2);
+            transform: translateX(5px);
+        }
+
+        .annotation-type {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .annotation-text {
+            margin-top: 5px;
+            color: #555;
+        }
+
+        .page-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(102,126,234,0.1);
+            border-radius: 15px;
+        }
+
+        .page-info {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .export-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(102,126,234,0.1);
+            border-radius: 15px;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .stats-panel {
+            background: rgba(255,255,255,0.9);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(102,126,234,0.2);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        @media (max-width: 1200px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                max-height: none;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PDF Annotator Pro</h1>
+            <p>Professional PDF annotation tool with advanced features</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <h3>Upload PDF Document</h3>
+                <p>Drag and drop a PDF file here or click to browse</p>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                <button class="btn" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+            </div>
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="toolbar" id="toolbar">
+            <div class="tool-group">
+                <button class="tool-btn active" data-tool="select">Select</button>
+                <button class="tool-btn" data-tool="highlight">Highlight</button>
+                <button class="tool-btn" data-tool="text">Text</button>
+                <button class="tool-btn" data-tool="draw">Draw</button>
+                <button class="tool-btn" data-tool="arrow">Arrow</button>
+                <button class="tool-btn" data-tool="rectangle">Rectangle</button>
+                <button class="tool-btn" data-tool="circle">Circle</button>
+            </div>
+            
+            <div class="tool-group">
+                <label>Color:</label>
+                <input type="color" class="color-picker" id="colorPicker" value="#ff0000">
+            </div>
+            
+            <div class="tool-group">
+                <div class="slider-container">
+                    <label>Size:</label>
+                    <input type="range" class="slider" id="sizeSlider" min="1" max="20" value="3">
+                    <span id="sizeValue">3</span>
+                </div>
+            </div>
+            
+            <div class="tool-group">
+                <div class="slider-container">
+                    <label>Opacity:</label>
+                    <input type="range" class="slider" id="opacitySlider" min="0.1" max="1" step="0.1" value="0.7">
+                    <span id="opacityValue">0.7</span>
+                </div>
+            </div>
+            
+            <div class="tool-group">
+                <button class="tool-btn" onclick="clearAnnotations()">Clear All</button>
+                <button class="tool-btn" onclick="undoLast()">Undo</button>
+                <button class="tool-btn" onclick="redoLast()">Redo</button>
+            </div>
+        </div>
+
+        <div class="workspace" id="workspace" style="display: none;">
+            <div class="pdf-container">
+                <div class="pdf-viewer">
+                    <div id="loadingSpinner" class="loading-spinner"></div>
+                    <div class="canvas-container" id="canvasContainer"></div>
+                </div>
+                
+                <div class="page-controls">
+                    <button class="btn" onclick="previousPage()">← Previous</button>
+                    <div class="page-info" id="pageInfo">Page 1 of 1</div>
+                    <button class="btn" onclick="nextPage()">Next →</button>
+                    
+                    <div class="zoom-controls">
+                        <button class="btn" onclick="zoomOut()">-</button>
+                        <span id="zoomLevel">100%</span>
+                        <button class="btn" onclick="zoomIn()">+</button>
+                        <button class="btn" onclick="fitToWidth()">Fit Width</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="stats-panel">
+                    <h3>📊 Document Stats</h3>
+                    <div class="stat-item">
+                        <span>Total Pages:</span>
+                        <span id="totalPages">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Annotations:</span>
+                        <span id="totalAnnotations">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>File Size:</span>
+                        <span id="fileSize">0 KB</span>
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <h3>💾 Export Options</h3>
+                    <div class="export-options">
+                        <button class="btn" onclick="exportPDF()">Export PDF</button>
+                        <button class="btn" onclick="exportJSON()">Export Data</button>
+                        <button class="btn" onclick="printDocument()">Print</button>
+                    </div>
+                </div>
+
+                <h3>🔍 Search Annotations</h3>
+                <input type="text" class="search-box" id="searchBox" placeholder="Search annotations...">
+                
+                <h3>📝 Annotations</h3>
+                <div id="annotationsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Global variables
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageRendering = false;
+        let pageNumPending = null;
+        let scale = 1.0;
+        let canvas = null;
+        let fabricCanvas = null;
+        let currentTool = 'select';
+        let annotations = [];
+        let isDrawing = false;
+        let undoStack = [];
+        let redoStack = [];
+
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            setupToolbar();
+        });
+
+        function setupEventListeners() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('uploadArea');
+
+            // File upload events
+            fileInput.addEventListener('change', handleFileSelect);
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            // Drag and drop events
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+
+            // Search functionality
+            document.getElementById('searchBox').addEventListener('input', searchAnnotations);
+
+            // Slider updates
+            document.getElementById('sizeSlider').addEventListener('input', updateSizeValue);
+            document.getElementById('opacitySlider').addEventListener('input', updateOpacityValue);
+        }
+
+        function setupToolbar() {
+            const toolButtons = document.querySelectorAll('.tool-btn[data-tool]');
+            toolButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    toolButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentTool = this.dataset.tool;
+                    updateFabricCanvasMode();
+                });
+            });
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                loadPDF(file);
+            } else {
+                showNotification('Please select a valid PDF file', 'error');
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                loadPDF(files[0]);
+            } else {
+                showNotification('Please drop a valid PDF file', 'error');
+            }
+        }
+
+        async function loadPDF(file) {
+            showProgress(true);
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                
+                // Update stats
+                document.getElementById('totalPages').textContent = pdfDoc.numPages;
+                document.getElementById('fileSize').textContent = formatFileSize(file.size);
+                
+                // Show workspace
+                document.getElementById('workspace').style.display = 'grid';
+                document.getElementById('toolbar').classList.add('active');
+                
+                // Render first page
+                renderPage(1);
+                
+                showNotification('PDF loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                showNotification('Error loading PDF file', 'error');
+            } finally {
+                showProgress(false);
+            }
+        }
+
+        function renderPage(num) {
+            pageRendering = true;
+            
+            pdfDoc.getPage(num).then(page => {
+                const viewport = page.getViewport({ scale: scale });
+                
+                // Create canvas if not exists
+                if (!canvas) {
+                    canvas = document.createElement('canvas');
+                    canvas.id = 'pdfCanvas';
+                    
+                    // Clear container and add canvas
+                    const container = document.getElementById('canvasContainer');
+                    container.innerHTML = '';
+                    container.appendChild(canvas);
+                    
+                    // Initialize Fabric.js canvas
+                    fabricCanvas = new fabric.Canvas('pdfCanvas', {
+                        selection: true,
+                        backgroundColor: 'transparent'
+                    });
+                    
+                    setupFabricEvents();
+                }
+                
+                // Set canvas dimensions
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                fabricCanvas.setDimensions({ width: viewport.width, height: viewport.height });
+                
+                const context = canvas.getContext('2d');
+                
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+                
+                renderTask.promise.then(() => {
+                    pageRendering = false;
+                    
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                    
+                    // Update page info
+                    document.getElementById('pageInfo').textContent = `Page ${num} of ${pdfDoc.numPages}`;
+                    document.getElementById('zoomLevel').textContent = `${Math.round(scale * 100)}%`;
+                    
+                    // Hide loading spinner
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                });
+            });
+        }
+
+        function setupFabricEvents() {
+            fabricCanvas.on('mouse:down', function(options) {
+                if (currentTool === 'draw') {
+                    isDrawing = true;
+                    const pointer = fabricCanvas.getPointer(options.e);
+                    const points = [pointer.x, pointer.y, pointer.x, pointer.y];
+                    
+                    const line = new fabric.Path(`M ${pointer.x} ${pointer.y} L ${pointer.x} ${pointer.y}`, {
+                        stroke: document.getElementById('colorPicker').value,
+                        strokeWidth: parseInt(document.getElementById('sizeSlider').value),
+                        fill: '',
+                        selectable: false,
+                        opacity: parseFloat(document.getElementById('opacitySlider').value)
+                    });
+                    
+                    fabricCanvas.add(line);
+                    fabricCanvas.renderAll();
+                }
+            });
+
+            fabricCanvas.on('mouse:move', function(options) {
+                if (isDrawing && currentTool === 'draw') {
+                    const pointer = fabricCanvas.getPointer(options.e);
+                    const objects = fabricCanvas.getObjects();
+                    const line = objects[objects.length - 1];
+                    
+                    if (line && line.type === 'path') {
+                        line.path.push(['L', pointer.x, pointer.y]);
+                        line._setPath(line.path.map(p => p.join(' ')).join(' '));
+                        fabricCanvas.renderAll();
+                    }
+                }
+            });
+
+            fabricCanvas.on('mouse:up', function() {
+                isDrawing = false;
+                saveState();
+            });
+
+            fabricCanvas.on('object:added', function(e) {
+                if (e.target.type !== 'activeSelection') {
+                    updateAnnotationsList();
+                }
+            });
+
+            fabricCanvas.on('object:removed', function() {
+                updateAnnotationsList();
+            });
+        }
+
+        function updateFabricCanvasMode() {
+            if (!fabricCanvas) return;
+            
+            fabricCanvas.isDrawingMode = false;
+            fabricCanvas.selection = currentTool === 'select';
+            
+            switch (currentTool) {
+                case 'draw':
+                    fabricCanvas.isDrawingMode = true;
+                    fabricCanvas.freeDrawingBrush.width = parseInt(document.getElementById('sizeSlider').value);
+                    fabricCanvas.freeDrawingBrush.color = document.getElementById('colorPicker').value;
+                    break;
+                case 'text':
+                    addTextAnnotation();
+                    break;
+                case 'rectangle':
+                    addRectangle();
+                    break;
+                case 'circle':
+                    addCircle();
+                    break;
+                case 'arrow':
+                    addArrow();
+                    break;
+                case 'highlight':
+                    addHighlight();
+                    break;
+            }
+        }
+
+        function addTextAnnotation() {
+            const text = new fabric.IText('Click to edit', {
+                left: 100,
+                top: 100,
+                fontFamily: 'Arial',
+                fontSize: 16,
+                fill: document.getElementById('colorPicker').value,
+                opacity: parseFloat(document.getElementById('opacitySlider').value)
+            });
+            
+            fabricCanvas.add(text);
+            fabricCanvas.setActiveObject(text);
+            text.enterEditing();
+            saveState();
+        }
+
+        function addRectangle() {
+            const rect = new fabric.Rect({
+                left: 100,
+                top: 100,
+                width: 100,
+                height: 60,
+                fill: 'transparent',
+                stroke: document.getElementById('colorPicker').value,
+                strokeWidth: parseInt(document.getElementById('sizeSlider').value),
+                opacity: parseFloat(document.getElementById('opacitySlider').value)
+            });
+            
+            fabricCanvas.add(rect);
+            fabricCanvas.setActiveObject(rect);
+            saveState();
+        }
+
+        function addCircle() {
+            const circle = new fabric.Circle({
+                left: 100,
+                top: 100,
+                radius: 50,
+                fill: 'transparent',
+                stroke: document.getElementById('colorPicker').value,
+                strokeWidth: parseInt(document.getElementById('sizeSlider').value),
+                opacity: parseFloat(document.getElementById('opacitySlider').value)
+            });
+            
+            fabricCanvas.add(circle);
+            fabricCanvas.setActiveObject(circle);
+            saveState();
+        }
+
+        function addArrow() {
+            const arrow = new fabric.Path('M 0 0 L 100 0 L 90 -10 M 100 0 L 90 10', {
+                left: 100,
+                top: 100,
+                stroke: document.getElementById('colorPicker').value,
+                strokeWidth: parseInt(document.getElementById('sizeSlider').value),
+                fill: '',
+                opacity: parseFloat(document.getElementById('opacitySlider').value)
+            });
+            
+            fabricCanvas.add(arrow);
+            fabricCanvas.setActiveObject(arrow);
+            saveState();
+        }
+
+        function addHighlight() {
+            const highlight = new fabric.Rect({
+                left: 100,
+                top: 100,
+                width: 200,
+                height: 20,
+                fill: document.getElementById('colorPicker').value,
+                opacity: 0.3,
+                selectable: true
+            });
+            
+            fabricCanvas.add(highlight);
+            fabricCanvas.setActiveObject(highlight);
+            saveState();
+        }
+
+        function previousPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        function nextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function zoomIn() {
+            scale *= 1.2;
+            renderPage(pageNum);
+        }
+
+        function zoomOut() {
+            scale /= 1.2;
+            renderPage(pageNum);
+        }
+
+        function fitToWidth() {
+            const container = document.getElementById('canvasContainer');
+            const containerWidth = container.clientWidth - 40;
+            
+            if (pdfDoc) {
+                pdfDoc.getPage(pageNum).then(page => {
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    scale = containerWidth / viewport.width;
+                    renderPage(pageNum);
+                });
+            }
+        }
+
+        function clearAnnotations() {
+            if (fabricCanvas) {
+                fabricCanvas.clear();
+                updateAnnotationsList();
+                saveState();
+                showNotification('All annotations cleared', 'info');
+            }
+        }
+
+        function saveState() {
+            if (fabricCanvas) {
+                undoStack.push(JSON.stringify(fabricCanvas.toJSON()));
+                redoStack = [];
+                
+                if (undoStack.length > 50) {
+                    undoStack.shift();
+                }
+            }
+        }
+
+        function undoLast() {
+            if (undoStack.length > 0) {
+                redoStack.push(JSON.stringify(fabricCanvas.toJSON()));
+                const state = undoStack.pop();
+                fabricCanvas.loadFromJSON(state, () => {
+                    fabricCanvas.renderAll();
+                    updateAnnotationsList();
+                });
+                showNotification('Undo successful', 'info');
+            }
+        }
+
+        function redoLast() {
+            if (redoStack.length > 0) {
+                undoStack.push(JSON.stringify(fabricCanvas.toJSON()));
+                const state = redoStack.pop();
+                fabricCanvas.loadFromJSON(state, () => {
+                    fabricCanvas.renderAll();
+                    updateAnnotationsList();
+                });
+                showNotification('Redo successful', 'info');
+            }
+        }
+
+        function updateAnnotationsList() {
+            const list = document.getElementById('annotationsList');
+            list.innerHTML = '';
+            
+            if (!fabricCanvas) return;
+            
+            const objects = fabricCanvas.getObjects();
+            let annotationCount = 0;
+            
+            objects.forEach((obj, index) => {
+                const item = document.createElement('div');
+                item.className = 'annotation-item';
+                
+                let type = 'Unknown';
+                let content = '';
+                
+                switch (obj.type) {
+                    case 'i-text':
+                        type = 'Text';
+                        content = obj.text || 'Empty text';
+                        break;
+                    case 'rect':
+                        type = obj.fill === 'transparent' ? 'Rectangle' : 'Highlight';
+                        content = `${Math.round(obj.width)} × ${Math.round(obj.height)}`;
+                        break;
+                    case 'circle':
+                        type = 'Circle';
+                        content = `Radius: ${Math.round(obj.radius)}`;
+                        break;
+                    case 'path':
+                        type = obj.path ? 'Arrow' : 'Drawing';
+                        content = 'Custom shape';
+                        break;
+                    default:
+                        type = obj.type;
+                        content = 'Annotation';
+                }
+                
+                item.innerHTML = `
+                    <div class="annotation-type">${type}</div>
+                    <div class="annotation-text">${content}</div>
+                    <div style="margin-top: 10px; display: flex; gap: 5px;">
+                        <button class="btn" style="padding: 5px 10px; font-size: 0.8em;" onclick="selectAnnotation(${index})">Select</button>
+                        <button class="btn" style="padding: 5px 10px; font-size: 0.8em;" onclick="deleteAnnotation(${index})">Delete</button>
+                    </div>
+                `;
+                
+                list.appendChild(item);
+                annotationCount++;
+            });
+            
+            document.getElementById('totalAnnotations').textContent = annotationCount;
+        }
+
+        function selectAnnotation(index) {
+            if (fabricCanvas) {
+                const objects = fabricCanvas.getObjects();
+                if (objects[index]) {
+                    fabricCanvas.setActiveObject(objects[index]);
+                    fabricCanvas.renderAll();
+                }
+            }
+        }
+
+        function deleteAnnotation(index) {
+            if (fabricCanvas) {
+                const objects = fabricCanvas.getObjects();
+                if (objects[index]) {
+                    fabricCanvas.remove(objects[index]);
+                    fabricCanvas.renderAll();
+                    updateAnnotationsList();
+                    saveState();
+                    showNotification('Annotation deleted', 'info');
+                }
+            }
+        }
+
+        function searchAnnotations() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const items = document.querySelectorAll('.annotation-item');
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    item.style.opacity = '1';
+                } else {
+                    item.style.display = searchTerm === '' ? 'block' : 'none';
+                    item.style.opacity = searchTerm === '' ? '1' : '0.5';
+                }
+            });
+        }
+
+        function updateSizeValue() {
+            const value = document.getElementById('sizeSlider').value;
+            document.getElementById('sizeValue').textContent = value;
+            
+            if (fabricCanvas && fabricCanvas.isDrawingMode) {
+                fabricCanvas.freeDrawingBrush.width = parseInt(value);
+            }
+        }
+
+        function updateOpacityValue() {
+            const value = document.getElementById('opacitySlider').value;
+            document.getElementById('opacityValue').textContent = value;
+        }
+
+        function exportPDF() {
+            if (!fabricCanvas || !pdfDoc) {
+                showNotification('No document to export', 'error');
+                return;
+            }
+            
+            showNotification('Exporting PDF with annotations...', 'info');
+            
+            // Create a new canvas with PDF + annotations
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const ctx = exportCanvas.getContext('2d');
+            
+            // Draw PDF content
+            ctx.drawImage(canvas, 0, 0);
+            
+            // Draw annotations
+            const fabricImg = fabricCanvas.toDataURL({
+                format: 'png',
+                backgroundColor: 'transparent'
+            });
+            
+            const img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                
+                // Create download link
+                exportCanvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `annotated_document_page_${pageNum}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showNotification('PDF exported successfully!', 'success');
+                });
+            };
+            img.src = fabricImg;
+        }
+
+        function exportJSON() {
+            if (!fabricCanvas) {
+                showNotification('No annotations to export', 'error');
+                return;
+            }
+            
+            const data = {
+                annotations: fabricCanvas.toJSON(),
+                pageNumber: pageNum,
+                scale: scale,
+                timestamp: new Date().toISOString(),
+                totalPages: pdfDoc ? pdfDoc.numPages : 0
+            };
+            
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `annotations_page_${pageNum}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification('Annotations exported successfully!', 'success');
+        }
+
+        function printDocument() {
+            if (!canvas) {
+                showNotification('No document to print', 'error');
+                return;
+            }
+            
+            const printWindow = window.open('', '_blank');
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const ctx = exportCanvas.getContext('2d');
+            
+            // Draw PDF content
+            ctx.drawImage(canvas, 0, 0);
+            
+            // Draw annotations
+            const fabricImg = fabricCanvas.toDataURL({
+                format: 'png',
+                backgroundColor: 'transparent'
+            });
+            
+            const img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                
+                const dataUrl = exportCanvas.toDataURL();
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Print Document</title>
+                            <style>
+                                body { margin: 0; padding: 20px; text-align: center; }
+                                img { max-width: 100%; height: auto; }
+                                @media print { body { padding: 0; } }
+                            </style>
+                        </head>
+                        <body>
+                            <img src="${dataUrl}" />
+                            <script>window.print(); window.close();</script>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            };
+            img.src = fabricImg;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showProgress(show) {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            
+            if (show) {
+                progressBar.style.display = 'block';
+                let width = 0;
+                const interval = setInterval(() => {
+                    width += 10;
+                    progressFill.style.width = width + '%';
+                    if (width >= 100) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            progressBar.style.display = 'none';
+                            progressFill.style.width = '0%';
+                        }, 500);
+                    }
+                }, 50);
+            } else {
+                progressBar.style.display = 'none';
+                progressFill.style.width = '0%';
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification';
+            
+            // Add type-specific styling
+            switch (type) {
+                case 'success':
+                    notification.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                    break;
+                case 'error':
+                    notification.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+                    break;
+                case 'info':
+                    notification.style.background = 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)';
+                    break;
+            }
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey || event.metaKey) {
+                switch (event.key) {
+                    case 'z':
+                        event.preventDefault();
+                        if (event.shiftKey) {
+                            redoLast();
+                        } else {
+                            undoLast();
+                        }
+                        break;
+                    case 'y':
+                        event.preventDefault();
+                        redoLast();
+                        break;
+                    case 's':
+                        event.preventDefault();
+                        exportJSON();
+                        break;
+                    case 'p':
+                        event.preventDefault();
+                        printDocument();
+                        break;
+                }
+            }
+            
+            // Page navigation
+            switch (event.key) {
+                case 'ArrowLeft':
+                    if (event.altKey) {
+                        event.preventDefault();
+                        previousPage();
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (event.altKey) {
+                        event.preventDefault();
+                        nextPage();
+                    }
+                    break;
+                case 'Delete':
+                    if (fabricCanvas && fabricCanvas.getActiveObject()) {
+                        event.preventDefault();
+                        const activeObj = fabricCanvas.getActiveObject();
+                        fabricCanvas.remove(activeObj);
+                        fabricCanvas.renderAll();
+                        updateAnnotationsList();
+                        saveState();
+                        showNotification('Annotation deleted', 'info');
+                    }
+                    break;
+                case 'Escape':
+                    if (fabricCanvas) {
+                        fabricCanvas.discardActiveObject();
+                        fabricCanvas.renderAll();
+                    }
+                    break;
+            }
+        });
+
+        // Auto-save functionality
+        setInterval(function() {
+            if (fabricCanvas && fabricCanvas.getObjects().length > 0) {
+                const autoSaveData = {
+                    annotations: fabricCanvas.toJSON(),
+                    pageNumber: pageNum,
+                    scale: scale,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Store in memory (localStorage not available in Claude.ai)
+                window.autoSaveData = autoSaveData;
+            }
+        }, 30000); // Auto-save every 30 seconds
+
+        // Performance optimization
+        function optimizeCanvas() {
+            if (fabricCanvas) {
+                fabricCanvas.renderOnAddRemove = false;
+                fabricCanvas.skipTargetFind = true;
+                
+                // Re-enable after operations
+                setTimeout(() => {
+                    fabricCanvas.renderOnAddRemove = true;
+                    fabricCanvas.skipTargetFind = false;
+                    fabricCanvas.renderAll();
+                }, 100);
+            }
+        }
+
+        // Touch device support
+        if ('ontouchstart' in window) {
+            document.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            });
+            
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Initialize tooltips and help system
+        function initializeHelp() {
+            const helpButton = document.createElement('button');
+            helpButton.className = 'btn';
+            helpButton.textContent = '❓ Help';
+            helpButton.style.position = 'fixed';
+            helpButton.style.bottom = '20px';
+            helpButton.style.right = '20px';
+            helpButton.style.zIndex = '1000';
+            
+            helpButton.addEventListener('click', function() {
+                showNotification('Use Ctrl+Z/Y for undo/redo, Alt+Arrow keys for page navigation, Delete to remove selected annotation', 'info');
+            });
+            
+            document.body.appendChild(helpButton);
+        }
+
+        // Initialize help system
+        initializeHelp();
+
+        // Welcome message
+        setTimeout(() => {
+            showNotification('Welcome to PDF Annotator Pro! Upload a PDF to get started.', 'info');
+        }, 1000);
+    </script>
+</body>
+</html>
