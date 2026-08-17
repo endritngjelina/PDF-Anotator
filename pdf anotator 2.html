@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Annotator Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 10px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            border-radius: 20px 0 0 20px;
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.2);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .tools-section {
+            flex: 1;
+        }
+
+        .tools-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .tool-group {
+            margin-bottom: 25px;
+        }
+
+        .tool-group-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #a0a0a0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tool-button {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .tool-button:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateX(5px);
+        }
+
+        .tool-button.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-color: #764ba2;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .color-option.selected {
+            border-color: white;
+            transform: scale(1.2);
+        }
+
+        .stroke-width-control {
+            margin-top: 15px;
+        }
+
+        .stroke-width-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #a0a0a0;
+        }
+
+        .stroke-width-control input {
+            width: 100%;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 6px;
+            padding: 8px;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f8f9fa;
+            position: relative;
+        }
+
+        .toolbar {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .page-button:hover {
+            background: #764ba2;
+            transform: translateY(-1px);
+        }
+
+        .page-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zoom-button {
+            padding: 6px 12px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .zoom-button:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .zoom-level {
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            background: #f8f9fa;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .pdf-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .annotation-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            text-align: center;
+        }
+
+        .welcome-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .annotation-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 10;
+            display: none;
+        }
+
+        .annotation-item {
+            padding: 12px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .annotation-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .annotation-text {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .annotation-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .primary-button {
+            background: #667eea;
+            color: white;
+        }
+
+        .primary-button:hover {
+            background: #764ba2;
+            transform: translateY(-1px);
+        }
+
+        .secondary-button {
+            background: #f8f9fa;
+            color: #666;
+            border: 1px solid #dee2e6;
+        }
+
+        .secondary-button:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .notification.error {
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="logo">📄 PDF Annotator Pro</div>
+            
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div>Drop PDF here or click to upload</div>
+                    <input type="file" class="file-input" id="fileInput" accept=".pdf">
+                </div>
+            </div>
+
+            <div class="tools-section">
+                <div class="tools-title">Annotation Tools</div>
+                
+                <div class="tool-group">
+                    <div class="tool-group-title">Drawing Tools</div>
+                    <button class="tool-button" data-tool="pen">
+                        <span>✏️</span> Pen
+                    </button>
+                    <button class="tool-button" data-tool="highlighter">
+                        <span>🖍️</span> Highlighter
+                    </button>
+                    <button class="tool-button" data-tool="eraser">
+                        <span>🧹</span> Eraser
+                    </button>
+                </div>
+
+                <div class="tool-group">
+                    <div class="tool-group-title">Shapes</div>
+                    <button class="tool-button" data-tool="rectangle">
+                        <span>⬜</span> Rectangle
+                    </button>
+                    <button class="tool-button" data-tool="circle">
+                        <span>⭕</span> Circle
+                    </button>
+                    <button class="tool-button" data-tool="arrow">
+                        <span>➡️</span> Arrow
+                    </button>
+                </div>
+
+                <div class="tool-group">
+                    <div class="tool-group-title">Text & Notes</div>
+                    <button class="tool-button" data-tool="text">
+                        <span>📝</span> Add Text
+                    </button>
+                    <button class="tool-button" data-tool="note">
+                        <span>💭</span> Sticky Note
+                    </button>
+                </div>
+
+                <div class="tool-group">
+                    <div class="tool-group-title">Colors</div>
+                    <div class="color-palette">
+                        <div class="color-option selected" data-color="#FF6B6B" style="background: #FF6B6B;"></div>
+                        <div class="color-option" data-color="#4ECDC4" style="background: #4ECDC4;"></div>
+                        <div class="color-option" data-color="#45B7D1" style="background: #45B7D1;"></div>
+                        <div class="color-option" data-color="#96CEB4" style="background: #96CEB4;"></div>
+                        <div class="color-option" data-color="#FFEAA7" style="background: #FFEAA7;"></div>
+                        <div class="color-option" data-color="#DDA0DD" style="background: #DDA0DD;"></div>
+                        <div class="color-option" data-color="#98D8C8" style="background: #98D8C8;"></div>
+                        <div class="color-option" data-color="#000000" style="background: #000000;"></div>
+                    </div>
+                </div>
+
+                <div class="tool-group">
+                    <div class="stroke-width-control">
+                        <label>Stroke Width</label>
+                        <input type="range" id="strokeWidth" min="1" max="20" value="3">
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-button primary-button" id="saveBtn">💾 Save</button>
+                <button class="action-button secondary-button" id="clearBtn">🗑️ Clear</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="page-controls">
+                    <button class="page-button" id="prevPageBtn">← Previous</button>
+                    <div class="page-info">
+                        <span id="currentPage">1</span> of <span id="totalPages">1</span>
+                    </div>
+                    <button class="page-button" id="nextPageBtn">Next →</button>
+                </div>
+                
+                <div class="zoom-controls">
+                    <button class="zoom-button" id="zoomOutBtn">-</button>
+                    <div class="zoom-level" id="zoomLevel">100%</div>
+                    <button class="zoom-button" id="zoomInBtn">+</button>
+                    <button class="zoom-button" id="fitPageBtn">Fit Page</button>
+                </div>
+            </div>
+
+            <div class="canvas-container" id="canvasContainer">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">📄</div>
+                    <div class="welcome-title">Welcome to PDF Annotator Pro</div>
+                    <div class="welcome-subtitle">Upload a PDF to start annotating</div>
+                </div>
+            </div>
+
+            <div class="annotation-panel" id="annotationPanel">
+                <h3>Annotations</h3>
+                <div id="annotationList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // PDF.js worker configuration
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        class PDFAnnotator {
+            constructor() {
+                this.pdfDoc = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.scale = 1.0;
+                this.canvas = null;
+                this.fabricCanvas = null;
+                this.currentTool = 'pen';
+                this.currentColor = '#FF6B6B';
+                this.strokeWidth = 3;
+                this.isDrawing = false;
+                this.annotations = [];
+                this.pageAnnotations = {};
+
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setupToolbar();
+                this.setupCanvas();
+            }
+
+            setupEventListeners() {
+                // File upload
+                const fileInput = document.getElementById('fileInput');
+                const uploadArea = document.getElementById('uploadArea');
+
+                uploadArea.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+
+                // Drag and drop
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.loadPDF(files[0]);
+                    }
+                });
+
+                // Tool selection
+                document.querySelectorAll('.tool-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        this.selectTool(e.target.closest('.tool-button').dataset.tool);
+                    });
+                });
+
+                // Color selection
+                document.querySelectorAll('.color-option').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        this.selectColor(e.target.dataset.color);
+                    });
+                });
+
+                // Stroke width
+                document.getElementById('strokeWidth').addEventListener('input', (e) => {
+                    this.strokeWidth = parseInt(e.target.value);
+                });
+
+                // Action buttons
+                document.getElementById('saveBtn').addEventListener('click', () => this.saveAnnotations());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearAnnotations());
+            }
+
+            setupToolbar() {
+                // Page navigation
+                document.getElementById('prevPageBtn').addEventListener('click', () => this.previousPage());
+                document.getElementById('nextPageBtn').addEventListener('click', () => this.nextPage());
+
+                // Zoom controls
+                document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
+                document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
+                document.getElementById('fitPageBtn').addEventListener('click', () => this.fitPage());
+            }
+
+            setupCanvas() {
+                // Canvas setup will be done when PDF is loaded
+            }
+
+            async handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    await this.loadPDF(file);
+                }
+            }
+
+            async loadPDF(file) {
+                this.showLoading();
+                
+                try {
+                    const fileReader = new FileReader();
+                    fileReader.onload = async (e) => {
+                        const typedArray = new Uint8Array(e.target.result);
+                        this.pdfDoc = await pdfjsLib.getDocument(typedArray).promise;
+                        this.totalPages = this.pdfDoc.numPages;
+                        this.currentPage = 1;
+                        
+                        await this.renderPage();
+                        this.hideLoading();
+                        this.showNotification('PDF loaded successfully!', 'success');
+                        
+                        // Hide welcome screen
+                        document.getElementById('welcomeScreen').style.display = 'none';
+                        
+                        // Update UI
+                        this.updatePageInfo();
+                    };
+                    fileReader.readAsArrayBuffer(file);
+                } catch (error) {
+                    this.hideLoading();
+                    this.showNotification('Error loading PDF: ' + error.message, 'error');
+                }
+            }
+
+            async renderPage() {
+                if (!this.pdfDoc) return;
+
+                const page = await this.pdfDoc.getPage(this.currentPage);
+                const viewport = page.getViewport({ scale: this.scale });
+
+                // Create or update canvas
+                if (!this.canvas) {
+                    this.createCanvas(viewport.width, viewport.height);
+                } else {
+                    this.updateCanvasSize(viewport.width, viewport.height);
+                }
+
+                const context = this.canvas.getContext('2d');
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+
+                await page.render(renderContext).promise;
+                
+                // Load annotations for this page
+                this.loadPageAnnotations();
+            }
+
+            createCanvas(width, height) {
+                const container = document.getElementById('canvasContainer');
+                
+                // Create canvas wrapper
+                const wrapper = document.createElement('div');
+                wrapper.className = 'canvas-wrapper';
+                wrapper.style.width = width + 'px';
+                wrapper.style.height = height + 'px';
+                
+                // Create PDF canvas
+                this.canvas = document.createElement('canvas');
+                this.canvas.className = 'pdf-canvas';
+                this.canvas.width = width;
+                this.canvas.height = height;
+                
+                // Create annotation canvas
+                const annotationCanvas = document.createElement('canvas');
+                annotationCanvas.className = 'annotation-canvas';
+                annotationCanvas.width = width;
+                annotationCanvas.height = height;
+                
+                wrapper.appendChild(this.canvas);
+                wrapper.appendChild(annotationCanvas);
+                container.appendChild(wrapper);
+                
+                // Initialize Fabric.js canvas
+                this.fabricCanvas = new fabric.Canvas(annotationCanvas, {
+                    isDrawingMode: true,
+                    selection: false
+                });
+                
+                this.setupFabricCanvas();
+            }
+
+            updateCanvasSize(width, height) {
+                const wrapper = document.querySelector('.canvas-wrapper');
+                wrapper.style.width = width + 'px';
+                wrapper.style.height = height + 'px';
+                
+                this.canvas.width = width;
+                this.canvas.height = height;
+                
+                this.fabricCanvas.setWidth(width);
+                this.fabricCanvas.setHeight(height);
+            }
+
+            setupFabricCanvas() {
+                // Configure drawing brush
+                this.fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(this.fabricCanvas);
+                this.updateBrushSettings();
+                
+                // Handle object selection
+                this.fabricCanvas.on('selection:created', (e) => {
+                    // Handle selection
+                });
+                
+                // Handle drawing events
+                this.fabricCanvas.on('path:created', (e) => {
+                    this.saveAnnotation(e.path);
+                });
+                
+                // Handle text addition
+                this.fabricCanvas.on('mouse:down', (e) => {
+                    if (this.currentTool === 'text') {
+                        this.addText(e.pointer.x, e.pointer.y);
+                    } else if (this.currentTool === 'note') {
+                        this.addStickyNote(e.pointer.x, e.pointer.y);
+                    }
+                });
+            }
+
+            selectTool(tool) {
+                this.currentTool = tool;
+                
+                // Update button states
+                document.querySelectorAll('.tool-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+                
+                // Configure canvas based on tool
+                switch(tool) {
+                    case 'pen':
+                        this.fabricCanvas.isDrawingMode = true;
+                        this.fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(this.fabricCanvas);
+                        break;
+                    case 'highlighter':
+                        this.fabricCanvas.isDrawingMode = true;
+                        this.fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(this.fabricCanvas);
+                        this.fabricCanvas.freeDrawingBrush.color = this.currentColor;
+                        this.fabricCanvas.freeDrawingBrush.width = this.strokeWidth * 3;
+                        break;
+                    case 'eraser':
+                        this.fabricCanvas.isDrawingMode = false;
+                        this.fabricCanvas.selection = true;
+                        break;
+                    case 'text':
+                    case 'note':
+                        this.fabricCanvas.isDrawingMode = false;
+                        this.fabricCanvas.selection = false;
+                        break;
+                    default:
+                        this.fabricCanvas.isDrawingMode = false;
+                        this.fabricCanvas.selection = false;
+                }
+                
+                this.updateBrushSettings();
+            }
+
+            selectColor(color) {
+                this.currentColor = color;
+                
+                // Update color selection UI
+                document.querySelectorAll('.color-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                document.querySelector(`[data-color="${color}"]`).classList.add('selected');
+                
+                this.updateBrushSettings();
+            }
+
+            updateBrushSettings() {
+                if (this.fabricCanvas && this.fabricCanvas.freeDrawingBrush) {
+                    this.fabricCanvas.freeDrawingBrush.color = this.currentColor;
+                    this.fabricCanvas.freeDrawingBrush.width = this.strokeWidth;
+                }
+            }
+
+            addText(x, y) {
+                const text = prompt('Enter text:');
+                if (text) {
+                    const textObj = new fabric.IText(text, {
+                        left: x,
+                        top: y,
+                        fill: this.currentColor,
+                        fontSize: 16,
+                        fontFamily: 'Arial'
+                    });
+                    this.fabricCanvas.add(textObj);
+                    this.saveAnnotation(textObj);
+                }
+            }
+
+            addStickyNote(x, y) {
+                const note = prompt('Enter note:');
+                if (note) {
+                    const group = new fabric.Group([
+                        new fabric.Rect({
+                            width: 100,
+                            height: 80,
+                            fill: '#FFEAA7',
+                            stroke: '#FFA502',
+                            strokeWidth: 2
+                        }),
+                        new fabric.Text(note, {
+                            fontSize: 12,
+                            fill: '#2d3436',
+                            textAlign: 'center',
+                            originX: 'center',
+                            originY: 'center'
+                        })
+                    ], {
+                        left: x,
+                        top: y
+                    });
+                    this.fabricCanvas.add(group);
+                    this.saveAnnotation(group);
+                }
+            }
+
+            saveAnnotation(object) {
+                const annotation = {
+                    id: Date.now(),
+                    page: this.currentPage,
+                    type: this.currentTool,
+                    object: object.toObject(),
+                    timestamp: new Date().toISOString()
+                };
+                
+                if (!this.pageAnnotations[this.currentPage]) {
+                    this.pageAnnotations[this.currentPage] = [];
+                }
+                
+                this.pageAnnotations[this.currentPage].push(annotation);
+                this.updateAnnotationPanel();
+            }
+
+            loadPageAnnotations() {
+                if (this.pageAnnotations[this.currentPage]) {
+                    this.fabricCanvas.clear();
+                    this.pageAnnotations[this.currentPage].forEach(annotation => {
+                        fabric.util.enlivenObjects([annotation.object], (objects) => {
+                            objects.forEach(obj => {
+                                this.fabricCanvas.add(obj);
+                            });
+                            this.fabricCanvas.renderAll();
+                        });
+                    });
+                } else {
+                    this.fabricCanvas.clear();
+                }
+            }
+
+            updateAnnotationPanel() {
+                const panel = document.getElementById('annotationPanel');
+                const list = document.getElementById('annotationList');
+                
+                list.innerHTML = '';
+                
+                // Show all annotations from current page
+                if (this.pageAnnotations[this.currentPage]) {
+                    this.pageAnnotations[this.currentPage].forEach(annotation => {
+                        const item = document.createElement('div');
+                        item.className = 'annotation-item';
+                        item.innerHTML = `
+                            <div class="annotation-text">${annotation.type.charAt(0).toUpperCase() + annotation.type.slice(1)} annotation</div>
+                            <div class="annotation-meta">Page ${annotation.page} • ${new Date(annotation.timestamp).toLocaleTimeString()}</div>
+                        `;
+                        list.appendChild(item);
+                    });
+                    
+                    panel.style.display = 'block';
+                } else {
+                    panel.style.display = 'none';
+                }
+            }
+
+            clearAnnotations() {
+                if (confirm('Are you sure you want to clear all annotations on this page?')) {
+                    this.fabricCanvas.clear();
+                    this.pageAnnotations[this.currentPage] = [];
+                    this.updateAnnotationPanel();
+                    this.showNotification('Annotations cleared!', 'success');
+                }
+            }
+
+            saveAnnotations() {
+                try {
+                    const data = {
+                        pageAnnotations: this.pageAnnotations,
+                        totalPages: this.totalPages,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'pdf-annotations.json';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    this.showNotification('Annotations saved successfully!', 'success');
+                } catch (error) {
+                    this.showNotification('Error saving annotations: ' + error.message, 'error');
+                }
+            }
+
+            previousPage() {
+                if (this.currentPage > 1) {
+                    this.saveCurrentPageAnnotations();
+                    this.currentPage--;
+                    this.renderPage();
+                    this.updatePageInfo();
+                }
+            }
+
+            nextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.saveCurrentPageAnnotations();
+                    this.currentPage++;
+                    this.renderPage();
+                    this.updatePageInfo();
+                }
+            }
+
+            saveCurrentPageAnnotations() {
+                if (this.fabricCanvas) {
+                    const objects = this.fabricCanvas.getObjects();
+                    this.pageAnnotations[this.currentPage] = objects.map((obj, index) => ({
+                        id: Date.now() + index,
+                        page: this.currentPage,
+                        type: this.currentTool,
+                        object: obj.toObject(),
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            }
+
+            updatePageInfo() {
+                document.getElementById('currentPage').textContent = this.currentPage;
+                document.getElementById('totalPages').textContent = this.totalPages;
+                
+                // Update button states
+                document.getElementById('prevPageBtn').disabled = this.currentPage <= 1;
+                document.getElementById('nextPageBtn').disabled = this.currentPage >= this.totalPages;
+            }
+
+            zoomIn() {
+                this.scale = Math.min(this.scale + 0.25, 3.0);
+                this.renderPage();
+                this.updateZoomLevel();
+            }
+
+            zoomOut() {
+                this.scale = Math.max(this.scale - 0.25, 0.5);
+                this.renderPage();
+                this.updateZoomLevel();
+            }
+
+            fitPage() {
+                const container = document.getElementById('canvasContainer');
+                const containerWidth = container.clientWidth - 40; // padding
+                const containerHeight = container.clientHeight - 40;
+                
+                if (this.pdfDoc) {
+                    this.pdfDoc.getPage(this.currentPage).then(page => {
+                        const viewport = page.getViewport({ scale: 1.0 });
+                        const scaleX = containerWidth / viewport.width;
+                        const scaleY = containerHeight / viewport.height;
+                        this.scale = Math.min(scaleX, scaleY, 2.0);
+                        this.renderPage();
+                        this.updateZoomLevel();
+                    });
+                }
+            }
+
+            updateZoomLevel() {
+                document.getElementById('zoomLevel').textContent = Math.round(this.scale * 100) + '%';
+            }
+
+            showLoading() {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+            }
+
+            hideLoading() {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+
+            showNotification(message, type = 'success') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 5px;">
+                        ${type === 'success' ? '✅' : '❌'} ${type === 'success' ? 'Success' : 'Error'}
+                    </div>
+                    <div>${message}</div>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.classList.add('show');
+                }, 100);
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 3000);
+            }
+        }
+
+        // Advanced Features
+        class AdvancedFeatures {
+            constructor(annotator) {
+                this.annotator = annotator;
+                this.setupAdvancedTools();
+                this.setupKeyboardShortcuts();
+                this.setupTouchGestures();
+            }
+
+            setupAdvancedTools() {
+                // Add measurement tool
+                this.addMeasurementTool();
+                
+                // Add shape tools
+                this.addShapeTools();
+                
+                // Add collaboration features
+                this.setupCollaboration();
+            }
+
+            addMeasurementTool() {
+                const toolGroup = document.querySelector('.tool-group:last-of-type');
+                const measureBtn = document.createElement('button');
+                measureBtn.className = 'tool-button';
+                measureBtn.setAttribute('data-tool', 'measure');
+                measureBtn.innerHTML = '<span>📐</span> Measure';
+                toolGroup.appendChild(measureBtn);
+
+                measureBtn.addEventListener('click', () => {
+                    this.annotator.selectTool('measure');
+                    this.setupMeasurementMode();
+                });
+            }
+
+            setupMeasurementMode() {
+                let startPoint = null;
+                let isDrawingLine = false;
+
+                this.annotator.fabricCanvas.on('mouse:down', (e) => {
+                    if (this.annotator.currentTool === 'measure') {
+                        if (!isDrawingLine) {
+                            startPoint = e.pointer;
+                            isDrawingLine = true;
+                        }
+                    }
+                });
+
+                this.annotator.fabricCanvas.on('mouse:up', (e) => {
+                    if (this.annotator.currentTool === 'measure' && isDrawingLine) {
+                        const endPoint = e.pointer;
+                        const distance = Math.sqrt(
+                            Math.pow(endPoint.x - startPoint.x, 2) + 
+                            Math.pow(endPoint.y - startPoint.y, 2)
+                        );
+
+                        // Create measurement line
+                        const line = new fabric.Line([startPoint.x, startPoint.y, endPoint.x, endPoint.y], {
+                            stroke: '#FF6B6B',
+                            strokeWidth: 2,
+                            strokeDashArray: [5, 5]
+                        });
+
+                        // Add measurement text
+                        const text = new fabric.Text(`${Math.round(distance)}px`, {
+                            left: (startPoint.x + endPoint.x) / 2,
+                            top: (startPoint.y + endPoint.y) / 2 - 10,
+                            fontSize: 12,
+                            fill: '#FF6B6B',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)'
+                        });
+
+                        const group = new fabric.Group([line, text]);
+                        this.annotator.fabricCanvas.add(group);
+                        
+                        isDrawingLine = false;
+                        startPoint = null;
+                    }
+                });
+            }
+
+            addShapeTools() {
+                // Rectangle tool functionality
+                document.querySelector('[data-tool="rectangle"]').addEventListener('click', () => {
+                    this.setupShapeDrawing('rectangle');
+                });
+
+                // Circle tool functionality
+                document.querySelector('[data-tool="circle"]').addEventListener('click', () => {
+                    this.setupShapeDrawing('circle');
+                });
+
+                // Arrow tool functionality
+                document.querySelector('[data-tool="arrow"]').addEventListener('click', () => {
+                    this.setupShapeDrawing('arrow');
+                });
+            }
+
+            setupShapeDrawing(shape) {
+                let isDrawing = false;
+                let startPoint = null;
+
+                this.annotator.fabricCanvas.off('mouse:down').off('mouse:move').off('mouse:up');
+
+                this.annotator.fabricCanvas.on('mouse:down', (e) => {
+                    isDrawing = true;
+                    startPoint = e.pointer;
+                });
+
+                this.annotator.fabricCanvas.on('mouse:move', (e) => {
+                    if (!isDrawing) return;
+                    
+                    // Preview shape while drawing
+                    this.drawShapePreview(shape, startPoint, e.pointer);
+                });
+
+                this.annotator.fabricCanvas.on('mouse:up', (e) => {
+                    if (isDrawing) {
+                        this.createShape(shape, startPoint, e.pointer);
+                        isDrawing = false;
+                        startPoint = null;
+                    }
+                });
+            }
+
+            drawShapePreview(shape, start, end) {
+                // Remove previous preview
+                const preview = this.annotator.fabricCanvas.getObjects().find(obj => obj.id === 'preview');
+                if (preview) {
+                    this.annotator.fabricCanvas.remove(preview);
+                }
+
+                let previewObject;
+                const width = Math.abs(end.x - start.x);
+                const height = Math.abs(end.y - start.y);
+
+                switch (shape) {
+                    case 'rectangle':
+                        previewObject = new fabric.Rect({
+                            left: Math.min(start.x, end.x),
+                            top: Math.min(start.y, end.y),
+                            width: width,
+                            height: height,
+                            fill: 'transparent',
+                            stroke: this.annotator.currentColor,
+                            strokeWidth: this.annotator.strokeWidth,
+                            opacity: 0.7,
+                            id: 'preview'
+                        });
+                        break;
+                    case 'circle':
+                        previewObject = new fabric.Circle({
+                            left: Math.min(start.x, end.x),
+                            top: Math.min(start.y, end.y),
+                            radius: Math.min(width, height) / 2,
+                            fill: 'transparent',
+                            stroke: this.annotator.currentColor,
+                            strokeWidth: this.annotator.strokeWidth,
+                            opacity: 0.7,
+                            id: 'preview'
+                        });
+                        break;
+                }
+
+                if (previewObject) {
+                    this.annotator.fabricCanvas.add(previewObject);
+                    this.annotator.fabricCanvas.renderAll();
+                }
+            }
+
+            createShape(shape, start, end) {
+                const width = Math.abs(end.x - start.x);
+                const height = Math.abs(end.y - start.y);
+                let shapeObject;
+
+                switch (shape) {
+                    case 'rectangle':
+                        shapeObject = new fabric.Rect({
+                            left: Math.min(start.x, end.x),
+                            top: Math.min(start.y, end.y),
+                            width: width,
+                            height: height,
+                            fill: 'transparent',
+                            stroke: this.annotator.currentColor,
+                            strokeWidth: this.annotator.strokeWidth
+                        });
+                        break;
+                    case 'circle':
+                        shapeObject = new fabric.Circle({
+                            left: Math.min(start.x, end.x),
+                            top: Math.min(start.y, end.y),
+                            radius: Math.min(width, height) / 2,
+                            fill: 'transparent',
+                            stroke: this.annotator.currentColor,
+                            strokeWidth: this.annotator.strokeWidth
+                        });
+                        break;
+                    case 'arrow':
+                        shapeObject = this.createArrow(start, end);
+                        break;
+                }
+
+                if (shapeObject) {
+                    // Remove preview
+                    const preview = this.annotator.fabricCanvas.getObjects().find(obj => obj.id === 'preview');
+                    if (preview) {
+                        this.annotator.fabricCanvas.remove(preview);
+                    }
+                    
+                    this.annotator.fabricCanvas.add(shapeObject);
+                    this.annotator.saveAnnotation(shapeObject);
+                }
+            }
+
+            createArrow(start, end) {
+                const headSize = 15;
+                const angle = Math.atan2(end.y - start.y, end.x - start.x);
+                
+                // Arrow line
+                const line = new fabric.Line([start.x, start.y, end.x, end.y], {
+                    stroke: this.annotator.currentColor,
+                    strokeWidth: this.annotator.strokeWidth
+                });
+
+                // Arrow head
+                const head1 = new fabric.Line([
+                    end.x,
+                    end.y,
+                    end.x - headSize * Math.cos(angle - Math.PI / 6),
+                    end.y - headSize * Math.sin(angle - Math.PI / 6)
+                ], {
+                    stroke: this.annotator.currentColor,
+                    strokeWidth: this.annotator.strokeWidth
+                });
+
+                const head2 = new fabric.Line([
+                    end.x,
+                    end.y,
+                    end.x - headSize * Math.cos(angle + Math.PI / 6),
+                    end.y - headSize * Math.sin(angle + Math.PI / 6)
+                ], {
+                    stroke: this.annotator.currentColor,
+                    strokeWidth: this.annotator.strokeWidth
+                });
+
+                return new fabric.Group([line, head1, head2]);
+            }
+
+            setupKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        switch (e.key) {
+                            case 's':
+                                e.preventDefault();
+                                this.annotator.saveAnnotations();
+                                break;
+                            case 'z':
+                                e.preventDefault();
+                                this.undo();
+                                break;
+                            case 'y':
+                                e.preventDefault();
+                                this.redo();
+                                break;
+                            case '+':
+                            case '=':
+                                e.preventDefault();
+                                this.annotator.zoomIn();
+                                break;
+                            case '-':
+                                e.preventDefault();
+                                this.annotator.zoomOut();
+                                break;
+                        }
+                    }
+                    
+                    // Tool shortcuts
+                    switch (e.key) {
+                        case '1':
+                            this.annotator.selectTool('pen');
+                            break;
+                        case '2':
+                            this.annotator.selectTool('highlighter');
+                            break;
+                        case '3':
+                            this.annotator.selectTool('eraser');
+                            break;
+                        case '4':
+                            this.annotator.selectTool('text');
+                            break;
+                        case 'ArrowLeft':
+                            this.annotator.previousPage();
+                            break;
+                        case 'ArrowRight':
+                            this.annotator.nextPage();
+                            break;
+                    }
+                });
+            }
+
+            setupTouchGestures() {
+                let initialDistance = 0;
+                let initialScale = 1;
+
+                this.annotator.fabricCanvas.on('touch:gesture', (e) => {
+                    if (e.e.touches && e.e.touches.length === 2) {
+                        const touch1 = e.e.touches[0];
+                        const touch2 = e.e.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+
+                        if (initialDistance === 0) {
+                            initialDistance = distance;
+                            initialScale = this.annotator.scale;
+                        } else {
+                            const scaleChange = distance / initialDistance;
+                            const newScale = initialScale * scaleChange;
+                            this.annotator.scale = Math.max(0.5, Math.min(3.0, newScale));
+                            this.annotator.renderPage();
+                            this.annotator.updateZoomLevel();
+                        }
+                    }
+                });
+
+                this.annotator.fabricCanvas.on('touch:end', () => {
+                    initialDistance = 0;
+                });
+            }
+
+            setupCollaboration() {
+                // Real-time collaboration placeholder
+                // In a real application, this would connect to a WebSocket server
+                this.collaborationStatus = 'offline';
+                this.addCollaborationUI();
+            }
+
+            addCollaborationUI() {
+                const sidebar = document.querySelector('.sidebar');
+                const collabSection = document.createElement('div');
+                collabSection.innerHTML = `
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 14px; color: #667eea; margin-bottom: 10px;">Collaboration</div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #28a745;"></div>
+                            <span>Ready to collaborate</span>
+                        </div>
+                    </div>
+                `;
+                sidebar.appendChild(collabSection);
+            }
+
+            undo() {
+                // Implement undo functionality
+                const objects = this.annotator.fabricCanvas.getObjects();
+                if (objects.length > 0) {
+                    const lastObject = objects[objects.length - 1];
+                    this.annotator.fabricCanvas.remove(lastObject);
+                    this.annotator.showNotification('Undo successful', 'success');
+                }
+            }
+
+            redo() {
+                // Implement redo functionality
+                // This would require maintaining a history stack
+                this.annotator.showNotification('Redo not available', 'error');
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            const pdfAnnotator = new PDFAnnotator();
+            const advancedFeatures = new AdvancedFeatures(pdfAnnotator);
+            
+            // Add some initial animations
+            setTimeout(() => {
+                document.querySelectorAll('.tool-button').forEach((btn, index) => {
+                    btn.style.opacity = '0';
+                    btn.style.transform = 'translateX(-20px)';
+                    setTimeout(() => {
+                        btn.style.transition = 'all 0.3s ease';
+                        btn.style.opacity = '1';
+                        btn.style.transform = 'translateX(0)';
+                    }, index * 50);
+                });
+            }, 500);
+        });
+    </script>
+</body>
+</html>
